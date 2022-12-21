@@ -1,0 +1,271 @@
+---
+title: "Practica 1"
+author: "Cesar"
+date: "2022-12-21"
+output: html_document
+---
+
+## Tarea empresarial
+Se desea identificar qué diferencia tiene un miembro anual de un usuario ocasional, con el respecto al uso de las bicicletas de la empresa Cyclistic, con el fin de emprender acciones para crear una campaña dirigida a los usuarios comunes y volverlos miembros anuales.
+
+## Fuente de datos utilizados
+Para esta ocasión se identificaron varios documentos otorgados por la empresa Cyclistic, los datos son datos públicos y están alojados en la web https://divvy-tripdata.s3.amazonaws.com/index.html
+
+Los datos usados para esta ocasión fueron los siguientes:
+Divvy_Trips_2019_Q2.csv
+Divvy_Trips_2019_Q3.csv
+Divvy_Trips_2019_Q4.csv
+Divvy_Trips_2020_Q1.csv
+
+Estos documentos esta previamente ordenados por cuartiles los cuales miden las fechas, las cuales abarcan un periodo de tiempo de 4 meses cada uno.
+
+## Proceso de Análisis.
+Iniciamos nuestro proceso instalando los paquetes necesarios y ejecutamos nuestras librerías
+
+install.packages("tidyverse")
+install.packages("lubridate")
+install.packages("ggplot2")
+
+
+```{r setup, include=FALSE}
+library(tidyverse)  
+library(lubridate)  
+library(ggplot2)  
+```
+una vez realizado estos pasos procedemos a abrir nuestra ubicación donde tenemos los documentos en mi caso:
+```{r ubicación}
+getwd()
+setwd("C:/Users/cesar/Documents")
+```
+## Paso 1: 
+
+Recolectar los datos - agregamos los datos que deseamos y procedemos a cargarlos en nuestro programa RStudio.
+```{r recolectar datos}
+q2_2019 <- read_csv("Divvy_Trips_2019_Q2.csv")
+q3_2019 <- read_csv("Divvy_Trips_2019_Q3.csv")
+q4_2019 <- read_csv("Divvy_Trips_2019_Q4.csv")
+q1_2020 <- read_csv("Divvy_Trips_2020_Q1.csv")
+```
+## Paso 2: 
+
+Organizar los datos y combinarlos en un único archivo necesario que se comparen los nombres de las columnas para identificar si son iguales en todos nuestros archivos.
+```{r organizar y combinar}
+colnames(q3_2019)
+colnames(q4_2019)
+colnames(q2_2019)
+colnames(q1_2020)
+```
+vemos que no todas las columnas tienen el mismo nombre por ello real debemos hacer que sean coherentes unas con otras.
+```{r visualizar columnas}
+(q4_2019 <- rename(q4_2019
+                   ,ride_id = trip_id
+                   ,rideable_type = bikeid 
+                   ,started_at = start_time  
+                   ,ended_at = end_time  
+                   ,start_station_name = from_station_name 
+                   ,start_station_id = from_station_id 
+                   ,end_station_name = to_station_name 
+                   ,end_station_id = to_station_id 
+                   ,member_casual = usertype))
+
+(q3_2019 <- rename(q3_2019
+                   ,ride_id = trip_id
+                   ,rideable_type = bikeid 
+                   ,started_at = start_time  
+                   ,ended_at = end_time  
+                   ,start_station_name = from_station_name 
+                   ,start_station_id = from_station_id 
+                   ,end_station_name = to_station_name 
+                   ,end_station_id = to_station_id 
+                   ,member_casual = usertype))
+
+(q2_2019 <- rename(q2_2019
+                   ,ride_id = "01 - Rental Details Rental ID"
+                   ,rideable_type = "01 - Rental Details Bike ID" 
+                   ,started_at = "01 - Rental Details Local Start Time"  
+                   ,ended_at = "01 - Rental Details Local End Time"  
+                   ,start_station_name = "03 - Rental Start Station Name" 
+                   ,start_station_id = "03 - Rental Start Station ID"
+                   ,end_station_name = "02 - Rental End Station Name" 
+                   ,end_station_id = "02 - Rental End Station ID"
+                   ,member_casual = "User Type"))
+```
+Realizado el paso anterior, buscamos incongruencias
+
+```{r buscar incongruencias}
+str(q1_2020)
+str(q4_2019)
+str(q3_2019)
+str(q2_2019)
+```
+Una vez tengamos todo de manera correcta lo que hacemos en empezar a convertir algunas columnas en caracteres para que puedan apilarse de manera correcta para esta ocasión lo haremos con “ride_id” y “rideable_type”
+```{r convertir columnas}
+q4_2019 <-  mutate(q4_2019, ride_id = as.character(ride_id)
+                   ,rideable_type = as.character(rideable_type)) 
+q3_2019 <-  mutate(q3_2019, ride_id = as.character(ride_id)
+                   ,rideable_type = as.character(rideable_type)) 
+q2_2019 <-  mutate(q2_2019, ride_id = as.character(ride_id)
+                   ,rideable_type = as.character(rideable_type))
+```
+Realizado el paso anterior procedemos a combinar nuestros datos en un solo marco de datos
+```{r combinar datos}
+all_trips <- bind_rows(q2_2019, q3_2019, q4_2019, q1_2020)
+```
+eliminamos los campos innecesarios para este análisis
+```{r eliminar campos}
+all_trips <- all_trips %>%  
+  select(-c(start_lat, start_lng, end_lat, end_lng, birthyear, gender, "01 - Rental Details Duration In Seconds Uncapped", "05 - Member Details Member Birthday Year", "Member Gender", "tripduration"))
+```
+## Paso 3: 
+Limpiar los datos y añadir datos para preparar el análisis
+Vemos nuestra nueva tabla creada y con las siguientes instrucciones detallamos:
+```{r detalles de marco}
+colnames(all_trips)  #listar los nombres de las columnas
+nrow(all_trips)  #Ver el número de filas hay en el marco de datos
+dim(all_trips)  #Dimensiones del marco de datos
+head(all_trips) #Ver las 6 primeras filas de datos
+str(all_trips)  #Ver lista de columnas y tipos de datos
+summary(all_trips)  #Resumen estadístico de datos
+```
+En este punto debemos tener en cuenta que muchos datos de nuestras filas son diferentes en varios documentos y debemos organizarlos con el fin de no dañar el análisis
+
+Debemos ver cuantas observaciones corresponde a cada tipo de usuario
+```{r observar}
+table(all_trips$member_casual)
+```
+una vez realizado procedemos a reasignar valores
+```{r reasignación}
+all_trips <-  all_trips %>% 
+  mutate(member_casual = recode(member_casual
+                           ,"Subscriber" = "member"
+                           ,"Customer" = "casual"))
+```
+Comprobamos
+```{r comprobar}
+table(all_trips$member_casual)
+```
+luego procedemos añadiendo columnas con fecha, mes y el año de cada viaje esto nos va a permitir ver el trayecto por mes, día o año.
+```{r añadir columnas}
+all_trips$date <- as.Date(all_trips$started_at) 
+all_trips$month <- format(as.Date(all_trips$date), "%m")
+all_trips$day <- format(as.Date(all_trips$date), "%d")
+all_trips$year <- format(as.Date(all_trips$date), "%Y")
+all_trips$day_of_week <- format(as.Date(all_trips$date), "%A")
+```
+Después de esto añadimos nuestro calculo “ride_length” a nuestro marco de datos, este cálculo se añadirá en formato de segundos
+```{r añadir "ride_length"}
+all_trips$ride_length <- difftime(all_trips$ended_at,all_trips$started_at)
+```
+inspeccionamos 
+```{r inspeccionar}
+str(all_trips)
+```
+Convertimos “ride_length” de factor a numérico para poder realizar los cálculos
+```{r convertir "ride_length"}
+is.factor(all_trips$ride_length)
+all_trips$ride_length <- as.numeric(as.character(all_trips$ride_length))
+is.numeric(all_trips$ride_length)
+```
+en este punto procedemos a eliminar datos malos y creamos una nueva versión del marco de datos, esta nueva versión es creada por que vamos a eliminar datos del marco actual.
+```{r eliminar datos malos}
+all_trips_v2 <- all_trips[!(all_trips$start_station_name == "HQ QR" | all_trips$ride_length<0),]
+```
+## Paso 4: Análisis Descriptivo
+
+Análisis descriptivo de la duración del trayecto(en segundos)
+```{r análisis}
+mean(all_trips_v2$ride_length) 
+median(all_trips_v2$ride_length) 
+max(all_trips_v2$ride_length)
+min(all_trips_v2$ride_length)
+```
+condensamos todos las líneas en una sola 
+```{r combinar líneas}
+summary(all_trips_v2$ride_length)
+```
+Comparamos miembros y usuarios ocasionales
+```{r comparar miembros}
+aggregate(all_trips_v2$ride_length ~ all_trips_v2$member_casual, FUN = mean)
+aggregate(all_trips_v2$ride_length ~ all_trips_v2$member_casual, FUN = median)
+aggregate(all_trips_v2$ride_length ~ all_trips_v2$member_casual, FUN = max)
+aggregate(all_trips_v2$ride_length ~ all_trips_v2$member_casual, FUN = min)
+```
+Vemos los tiempos medio de cada viaje por día para los miembros frente a los usuarios ocasionales
+```{r tiempo media por viaje}
+aggregate(all_trips_v2$ride_length ~ all_trips_v2$member_casual + all_trips_v2$day_of_week, FUN = mean)
+```
+Como resultado vemos que nuestra media es de 12 minutos, lo que nos indica que la mayoría de los usuarios sin importar si son miembros o usuarios ocasionales suele hacer recorridos nos tan largos
+
+ordenamos los días de la semana por que esta deshornados
+
+```{r ordenar días}
+all_trips_v2$day_of_week <- ordered(all_trips_v2$day_of_week, levels=c("domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"))
+```
+ahora realizamos el cálculo del tiempo medio de viaje por día para los miembros frente a los usuarios ocasionales
+
+```{r cálculo de tiempo medio}
+aggregate(all_trips_v2$ride_length ~ all_trips_v2$member_casual + all_trips_v2$day_of_week, FUN = mean)
+```
+analizamos los datos de usuarios por tipo y día de la semana
+
+```{r usuario*día de semana}
+all_trips_v2 %>% 
+  mutate(weekday = wday(started_at, label = TRUE)) %>%  
+  group_by(member_casual, weekday) %>%  
+  summarise(number_of_rides = n()
+  ,average_duration = mean(ride_length)) %>% 		
+  arrange(member_casual, weekday)	
+```
+Visualizamos el número de viajes por tipo de usuario  
+
+```{r número de viajes por tipo usuario}
+all_trips_v2 %>% 
+  mutate(weekday = wday(started_at, label = TRUE)) %>% 
+  group_by(member_casual, weekday) %>% 
+  summarise(number_of_rides = n()
+            ,average_duration = mean(ride_length)) %>% 
+
+ arrange(member_casual, weekday)  %>% 
+  ggplot(aes(x = weekday, y = number_of_rides, fill = member_casual)) +
+  geom_col(position = "dodge")
+```
+
+
+Como nos detalla el grafico vemos que los miembros anuales hacen más recorridos a comparación de los usuarios ocasionales.
+
+
+
+Ahora creamos una visualizacion para la duración media
+
+```{r duración media}
+all_trips_v2 %>% 
+  mutate(weekday = wday(started_at, label = TRUE)) %>% 
+  group_by(member_casual, weekday) %>% 
+  summarise(number_of_rides = n()
+            ,average_duration = mean(ride_length)) %>% 
+  arrange(member_casual, weekday)  %>% 
+  ggplot(aes(x = weekday, y = average_duration, fill = member_casual)) +
+  geom_col(position = "dodge")
+```
+
+
+
+Aquí podemos ver que los usuarios ocasionales son los que hacen un recorrido más extenso en comparación de los miembros anuales.
+
+En promedio un usuario ocasional está superando el tiempo de 50 minutos en comparación de los 16 minutos que el tiempo aproximado de uso de un miembro anual.
+
+
+
+## Resumen de análisis
+
+Basándonos en nuestro anterior análisis logramos concluir que los miembros anuales son los que más viajes realizan por día  a diferencia de los miembros ocasionales los cuales no hacen tantos viajes por días, sin embargo, los miembros ocasionales son los que hacen recorridos más largos como vemos en nuestra segunda gráfica, esto quiere decir que usan menos las bicicletas, pero hace recorridos más extensos.
+
+
+
+## Recomendaciones
+
+1.- Ofrecer incentivos a los miembros ocasionales para que utilicen más las bicicletas. Esto podría incluir descuentos en los precios de membresía o tarifas de alquiler, promociones especiales o programas de lealtad.
+
+2.-Considerar la posibilidad de aplicar un tiempo de uso o distancia máximos para usuarios ocasionales, esto con el fin de incentivar a ser miembro anual, ya que estos no tendrían ningún limitante.
+
+3.-Promover el uso de bicicletas entre los miembros ocasionales a través de campañas de marketing y publicidad dirigidas a ellos, con el objetivo de aumentar su conciencia sobre los beneficios de utilizar las bicicletas en lugar de otros medios de transporte. Esto podría incluir mensajes sobre el impacto positivo en el medio ambiente, la salud y el bienestar personal.
